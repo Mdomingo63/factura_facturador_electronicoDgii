@@ -1,0 +1,61 @@
+Quiero recorrer los archivos en pdf que están en esta carpeta:
+"C:/Users/Domingo Sánchez/Escritorio/DOCUMENTOS TRABAJOS/CONTABILIDAD/factura_facturador_electronicoDgii/facturas_606",
+y extraer los datos de 'RNC:' de la empresa
+extraer el 'e-NCF:', extraer la 'Fecha Vencimiento:', extraer la 'Fecha Emisión:',
+extraer el 'RNC Cliente:', extraer el 'Subtotal Gravado:' y el 'Subtotal Exento:'
+y extraer el 'Total ITBIS:', y con estos datos construir un archivo txt con este 
+formato: 
+606|00105336614|202609|18
+131233988|1|09|B0100018720||20260923|20260923|0|2951|2951|531|0|0|0|531|0||0|0|0|0|0|04
+101880554|1|09|B0100010625||20260923|20260923|0|2182|2182|392|0|0|0|392|0||0|0|0|0|0|04.
+Este archivo tiene un encabezado: '606|00105336614|202609|18', que se puede construir
+de la manera siguiente, los datos '606|00105336614|' son fijos se pueden crear dos 
+variables con nombre 'formato606'= '606' y otra con nombre 'rnc_cliente' = '00105336614'
+y tomar en cuenta el separador pipe '|', para los datos de fecha '202609', crear una
+variable llamada 'fecha_encabezado' y su valor se va a construir tomando la fecha del sistema
+y a esta restarle uno al mes en los casos de que el mes este entre febrero y diciembre, si el mes
+es enero entonces restar uno al mes y al año. por ejemplo si la fecha es 11/11/2026, entonces se convierte
+a "yyyymm" restandole uno al mes para que el resultado sea '202610' y en el segundo caso si la fecha es
+01/01/2027 entonces se resta uno al mes y uno al año se formatea así 'yyyymm' y el resultado sería 
+'202612'. En el caso del último dato del encabezado que es '|18', se crea una variable llamada 'conteo_filas'
+y su valor se obtiene de contar todas las líneas o filas del detalle como estas"
+131233988|1|09|B0100018720||20260923|20260923|0|2951|2951|531|0|0|0|531|0||0|0|0|0|0|04
+101880554|1|09|B0100010625||20260923|20260923|0|2182|2182|392|0|0|0|392|0||0|0|0|0|0|04.
+Aquí hay dos filas que entonces al variable 'conteo_filas' tendrá el valor de 2.
+Para construir el detalle:  
+    
+131233988|1|09|B0100018720||20260923|20260923|0|2951|2951|531|0|0|0|531|0||0|0|0|0|0|04
+101880554|1|09|B0100010625||20260923|20260923|0|2182|2182|392|0|0|0|392|0||0|0|0|0|0|04.
+este detalle de más arriba tiene 23 columnas separadas con el pipe '|' y estas se construyen
+de la manera siguientes, para columna uno se crea variable 'rnc_proveedor' y se captura del 
+valor que esta a la derecha de 'RNC:', la columna dos se crea la variable 'tipo_rnc' que se construye
+buscando la cantidad de dígitos que tiene la variable 'rnc_proveedor' si esta tiene 9 dígitos entonces
+la variable 'tipo_rnc' toma el valor de '1', pero si tiene 11 dígito toma el valor de '2'. La columna
+tres se construye creando una variable 'tipo_gastos' que su valor dependerá de si los 'rnc_proveedor' es 
+diferente de estos rnc: ['101820217', '101001577'] si son diferentes toma un valor de '09' y si son iguales
+toma un valor de '02'. La columna cuatro se crea la variable 'ncf' y su valor es la captura del valor de la 
+factura que esta a la derecha del texto: 'e-NCF:'. La columna cinco se crea la variable 'ncf_modificado' el
+valor de esta variable se obtiene tomando el valor de la variable 'ncf' y si este valor tiene en su extructura
+el valor 'E34', es decir primero se debe extraer el valor que esta a la izquierda del valor de la variable 
+'e-NCF: por ejemplo el valor de la variable 'ncf' puede ser: 'E340000000001' si este tiene a la izquierda el valor
+'E34' entonces se extrae el valor que tiene el texto 'NCF Modificado:' a la derecha y este será el valor de la variable
+'ncf_modificado'. Las columnas seis y siete crear la variable 'fecha_anyo' y su valor será obtenido extrayendo al fecha
+del sistema y haciendo el mismo procedimiento que se hizo para la variable 'fecha_encabezado' con la diferencia que esta
+estará formateada en 'yyyymmdd' así '20261111'. La columna ocho depende de si el valor de la variable 'tipo_gastos' es igual 
+'02' si es así entonces se extrae el valor de sumar los valores a la derecha del texto en la factura que dice: 'Subtotal Gravado:' y 'Subtotal Exento:' y se crean las variable 'subtotal_gravado' y variable 'subtotal_excento' y los valores de estas variable se suman y se lleva este valor a una variable llamada 'monto_servicio', y la columna nueve su valor depende de si la variable 'tipo_gastos' su valor es igual a '09' y si es así entonces crear la variable 'monto_bienes' y su valor va a ser la sumar los valores de las variables 'subtotal_gravado' y 'subtotal_excento'. La columna diez se crea la variable 'monto_total' y su valor en la suma de las variables 'monto_servicio' y 'monto_bienes'. La columna once se crea la variable 'itbis' y su valor será el extraído del texto: 'Total ITBIS:' el valor que esta a la derecha de este texto.
+las columnas doce, trece, catorce el valor será cero. La columna quince el valor será igual al valor de la variable 'itbis'.
+La columna diezciseis su valor es igual a cero. La columna diezcisiete su valor es nulo o en blanco. Las columnas diezciocho, diezcinueve, su valor es cero, La columna veinte se crean las variables 'selectivo_consumo_uno' y 'selectivo_consumo_dos' su valor se obtiene de la factura o archivo en pdf con texto: 'Total ISCe:' y del texto: 'Total ISCav:'  se extrae el valor que esta a la derecha y el valor de ambas variables se suman y se lleva a la columna veinte. La 
+veintiuno se crea la variable 'otros_impuestos' y su valor se obtiene de extraer de la factura o archivo en pdf del texto: 'CDT:' el valor que esta a la derecha y este se lleva a la columna veintiuno. La columna veintidós se crea la variable 'propina_legal' y su valor se obtiene de la factura o archivo en pdf que tiene el texto: 'Propina Legal:' se extrae el valor que esta a la derecha . La columna veintitres su valor es igual a '04'. Después de terminar de construir el archivo txt se le debe asgnar el nombre de: 'DGII_F_606_00105336614_202609.txt', para hacerlo dinámico se esta parte: ' 'fecha_encabezado'' se pone fija y la otra parte se le agregael varlo de la variable 'rnc_cliente' y de la variable 'fecha_encabezado' y quedaría así:  'DGII_F_606_rnc_cliente_fecha_encabezado'. Después terminar con el txt y guarda en la carpeta del proyecto, entonces llevar los datos al archivo en excel con path: "C:/Users/Domingo Sánchez/Escritorio/DOCUMENTOS TRABAJOS/CONTABILIDAD/factura_facturador_electronicoDgii/ingresos_gastos.xlsx", con nombre: 'ingresos_gastos.xlsx' y a la hoja: 'GASTOS606' y a partir de la fila dos y las columnas son estas:
+AÑO
+MES	
+RNC	
+NCF	
+MONTO_SERVICIOS	
+MONTO_BIENES	
+TOTAL	
+ITBIS.
+para las columna 'AÑO' Y 'MES', se crean las varibles 'anyo' y su valore se obtiene de la variable 'fecha_encabezado' y se extrae el año. lo mismo para la columna 'MES', se extrae su valor de la variable 'fecha_encabezado' y que sera en formato texto número así '11' si es noviembre, entonces se convierte al nombre, por ejemplo si es'01' es 'Enero' si es 02 será 'Febrero' y así sucesivamente para los demás meses. Para la columna 'RNC' se toma el varlos de la variable 'rnc_proveedor'. Para la columna 'NCF' se toma el valor de la variable 'ncf'. Para la columna 'MONTO_SERVICIOS' se toma el valor de la variable 'monto_servicio'. Para la columna MONTO_BIENES se toma el valor de la variable 'monto_bienes'. Para la columna TOTAL se suman las variables 'monto_servicio' y 'monto_bienes'. Para la columna ITBIS se obtiene el valor de la variable 'itbis'. Y después se guarda el archivo con el mismo nombre: 'ingresos_gastos.xlsx'. 
+Esto hacerlo en Python y PySide6 y crear el archivo en carpeta del proyecto con nombre: 'formato_606.py'
+
+
+ 
