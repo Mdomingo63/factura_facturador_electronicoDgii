@@ -12,7 +12,7 @@ etiqueta ('RNC:', 'e-NCF:', 'Subtotal Gravado:', 'Total ITBIS:', ...)
 con el valor que está a su derecha en el mismo renglón visual.
 
 Ejecutar:  python formato_606.py
-Requiere:  PySide6, PyMuPDF (fitz), pytesseract, Pillow, openpyxl y Tesseract-OCR.
+Requiere:  PySide6, PyMuPDF (pymupdf), pytesseract, Pillow, openpyxl y Tesseract-OCR.
 """
 
 import io
@@ -26,9 +26,10 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-import fitz  # PyMuPDF
 import openpyxl
+import pymupdf  # PyMuPDF
 import pytesseract
+from openpyxl.cell.cell import MergedCell
 from PIL import Image
 from PySide6.QtCore import QThread, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
@@ -185,11 +186,14 @@ def pdf_a_lineas(ruta_pdf, idioma="spa", log=print):
     """Aplica OCR al PDF y reconstruye los renglones visuales de cada página.
     Devuelve una lista de dicts {'pagina', 'cy', 'texto'}."""
     lineas = []
-    with fitz.open(ruta_pdf) as documento:
-        total = len(documento)
-        for num, pagina in enumerate(documento, 1):
+    with pymupdf.open(ruta_pdf) as documento:
+        total = documento.page_count
+        for num in range(1, total + 1):
+            pagina = documento.load_page(num - 1)
             log(f"   OCR página {num}/{total}…")
-            pix = pagina.get_pixmap(dpi=DPI_OCR)
+            # PyMuPDF inyecta 'get_pixmap' desde pymupdf.utils en tiempo de
+            # importación; el analizador de tipos no puede verlo.
+            pix = pagina.get_pixmap(dpi=DPI_OCR)  # type: ignore[attr-defined]
             imagen = Image.open(io.BytesIO(pix.tobytes("png")))
             datos = pytesseract.image_to_data(
                 imagen, lang=idioma, output_type=pytesseract.Output.DICT)
@@ -248,7 +252,7 @@ def monto_despues_de(texto, patron_etiqueta):
 
 def extraer_datos_pdf(ruta_pdf, idioma="spa", log=print):
     """Lee un PDF con OCR y devuelve los campos de la factura."""
-    campos = {
+    campos: dict[str, str | float | None] = {
         "rnc": None, "rnc_cliente": None, "ncf": None, "ncf_modificado": None,
         "fecha_emision": None, "fecha_vencimiento": None,
         "subtotal_gravado": None, "subtotal_exento": None, "itbis": None,
@@ -357,6 +361,15 @@ def construir_fila_detalle(campos, log=print):
 
 
 # ============================================================ proceso
+def escribir_fila(ws, fila, valores):
+    """Escribe una fila completa en la hoja.
+    Omite las celdas combinadas (MergedCell), que no admiten valor."""
+    for columna, valor in enumerate(valores, 1):
+        celda = ws.cell(row=fila, column=columna)
+        if not isinstance(celda, MergedCell):
+            celda.value = valor
+
+
 def exportar_excel(filas, ruta_xlsx, periodo, log=print):
     """Agrega las filas a la hoja GASTOS606 a partir de la fila 2 y guarda."""
     ruta_xlsx = Path(ruta_xlsx)
@@ -375,15 +388,16 @@ def exportar_excel(filas, ruta_xlsx, periodo, log=print):
     anyo = int(periodo[:4])
     mes = NOMBRES_MESES[int(periodo[4:6])]
     for i, f in enumerate(filas):
-        r = fila + i
-        ws.cell(r, 1, anyo)                       # AÑO (número)
-        ws.cell(r, 2, mes)                        # MES (nombre en español)
-        ws.cell(r, 3, f["rnc"])                   # RNC
-        ws.cell(r, 4, f["ncf"])                   # NCF
-        ws.cell(r, 5, f["monto_servicios"])       # MONTO_SERVICIOS
-        ws.cell(r, 6, f["monto_bienes"])          # MONTO_BIENES
-        ws.cell(r, 7, f["total"])                 # TOTAL
-        ws.cell(r, 8, f["itbis"])                 # ITBIS
+        escribir_fila(ws, fila + i, [
+            anyo,                    # AÑO (número)
+            mes,                     # MES (nombre)
+            f["rnc"],                # RNC
+            f["ncf"],                # NCF
+            f["monto_servicios"],    # MONTO_SERVICIOS
+            f["monto_bienes"],       # MONTO_BIENES
+            f["total"],              # TOTAL
+            f["itbis"],              # ITBIS
+        ])
     try:
         wb.save(ruta_xlsx)
     except PermissionError:
