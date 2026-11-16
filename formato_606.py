@@ -31,7 +31,7 @@ import pymupdf  # PyMuPDF
 import pytesseract
 from openpyxl.cell.cell import MergedCell
 from PIL import Image
-from PySide6.QtCore import QThread, QUrl, Signal
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
@@ -472,46 +472,166 @@ class ProcesadorHilo(QThread):
             self.senal_error.emit(str(exc))
 
 
+ESTILO = """
+QMainWindow, QWidget#central { background: #f4f5f7; }
+QWidget#encabezado {
+    background: #111418;
+    border-bottom: 3px solid #2f81f7;
+}
+QLabel#titulo {
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 600;
+}
+QLabel#subtitulo {
+    color: #9aa4b2;
+    font-size: 12px;
+}
+QWidget#contenido { background: #f4f5f7; }
+QLabel#etiqueta { color: #374151; font-size: 13px; font-weight: 600; }
+QLineEdit {
+    background: #ffffff;
+    border: 1px solid #d5dae1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #1f2937;
+    selection-background-color: #2f81f7;
+}
+QLineEdit:focus { border: 1px solid #2f81f7; }
+QPushButton#principal {
+    background: #2f81f7;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+}
+QPushButton#principal:hover { background: #1f6fe0; }
+QPushButton#principal:pressed { background: #1a5fc0; }
+QPushButton#principal:disabled { background: #b9c3d0; color: #eef1f5; }
+QPushButton#secundario {
+    background: #ffffff;
+    color: #1f2937;
+    border: 1px solid #d5dae1;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+}
+QPushButton#secundario:hover { background: #eef2f7; border-color: #b9c3d0; }
+QPushButton#oscuro {
+    background: #374151;
+    color: #ffffff;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+}
+QPushButton#oscuro:hover { background: #4b5563; border-color: #4b5563; }
+QPushButton#oscuro:pressed { background: #1f2937; border-color: #1f2937; }
+QPlainTextEdit#consola {
+    background: #000000;
+    color: #ffffff;
+    border: 1px solid #1f2937;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 12px;
+    selection-background-color: #2f81f7;
+}
+"""
+
+
 class VentanaPrincipal(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Formato 606 - DGII")
-        self.resize(860, 580)
+        self.resize(900, 620)
         self.hilo = None
 
         central = QWidget()
+        central.setObjectName("central")
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
+        encabezado = QWidget()
+        encabezado.setObjectName("encabezado")
+        capa_encabezado = QVBoxLayout(encabezado)
+        capa_encabezado.setContentsMargins(24, 18, 24, 18)
+        capa_encabezado.setSpacing(4)
+        titulo = QLabel("Formato 606 · DGII")
+        titulo.setObjectName("titulo")
         periodo = fecha_encabezado()
-        info = QLabel(f"RNC Cliente (fijo): {RNC_CLIENTE}      "
-                      f"Período a reportar: {periodo}")
-        layout.addWidget(info)
+        subtitulo = QLabel(f"RNC Cliente: {RNC_CLIENTE}      "
+                           f"Período a reportar: {periodo}")
+        subtitulo.setObjectName("subtitulo")
+        capa_encabezado.addWidget(titulo)
+        capa_encabezado.addWidget(subtitulo)
+        layout.addWidget(encabezado)
+
+        contenido = QWidget()
+        contenido.setObjectName("contenido")
+        capa = QVBoxLayout(contenido)
+        capa.setContentsMargins(24, 20, 24, 20)
+        capa.setSpacing(14)
+        layout.addWidget(contenido, 1)
 
         fila_carpeta = QHBoxLayout()
-        fila_carpeta.addWidget(QLabel("Carpeta de PDFs:"))
+        fila_carpeta.setSpacing(8)
+        etiqueta = QLabel("Carpeta de PDFs:")
+        etiqueta.setObjectName("etiqueta")
+        fila_carpeta.addWidget(etiqueta)
         self.txt_carpeta = QLineEdit(str(CARPETA_PDFS))
         fila_carpeta.addWidget(self.txt_carpeta, 1)
-        btn_examinar = QPushButton("Examinar…")
+        btn_examinar = QPushButton("Examinar...")
+        btn_examinar.setObjectName("secundario")
+        btn_examinar.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_examinar.clicked.connect(self.elegir_carpeta)
         fila_carpeta.addWidget(btn_examinar)
-        layout.addLayout(fila_carpeta)
+        capa.addLayout(fila_carpeta)
 
-        self.btn_procesar = QPushButton("Procesar facturas (PDF → TXT 606 + Excel)")
-        self.btn_procesar.setMinimumHeight(42)
+        fila_botones = QHBoxLayout()
+        fila_botones.setSpacing(10)
+        self.btn_procesar = QPushButton("Procesar facturas")
+        self.btn_procesar.setObjectName("principal")
+        self.btn_procesar.setMinimumHeight(40)
+        self.btn_procesar.setFixedWidth(200)
+        self.btn_procesar.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_procesar.clicked.connect(self.procesar)
-        layout.addWidget(self.btn_procesar)
+        fila_botones.addWidget(self.btn_procesar)
 
-        self.log = QPlainTextEdit()
-        self.log.setReadOnly(True)
-        self.log.setPlaceholderText(
-            "Aquí se mostrará el detalle del proceso…")
-        layout.addWidget(self.log, 1)
-
-        self.btn_abrir = QPushButton("Abrir carpeta del proyecto (TXT y Excel)")
+        self.btn_abrir = QPushButton("Abrir carpeta del proyecto")
+        self.btn_abrir.setObjectName("oscuro")
+        self.btn_abrir.setMinimumHeight(40)
+        self.btn_abrir.setFixedWidth(200)
+        self.btn_abrir.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_abrir.clicked.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(RUTA_PROYECTO))))
-        layout.addWidget(self.btn_abrir)
+        fila_botones.addWidget(self.btn_abrir)
+
+        self.btn_cerrar = QPushButton("Cerrar Ventana")
+        self.btn_cerrar.setObjectName("principal")
+        self.btn_cerrar.setMinimumHeight(40)
+        self.btn_cerrar.setFixedWidth(200)
+        self.btn_cerrar.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_cerrar.clicked.connect(self.close)
+        fila_botones.addWidget(self.btn_cerrar)
+        fila_botones.addStretch(1)
+        capa.addLayout(fila_botones)
+
+        self.log = QPlainTextEdit()
+        self.log.setObjectName("consola")
+        self.log.setReadOnly(True)
+        self.log.setPlaceholderText(
+            "Aquí se mostrará el detalle del proceso...")
+        capa.addWidget(self.log, 1)
+
+        self.setStyleSheet(ESTILO)
+
 
     def elegir_carpeta(self):
         carpeta = QFileDialog.getExistingDirectory(
